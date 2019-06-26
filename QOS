@@ -15,7 +15,7 @@ env.qos = {
         ]
 }
 
-The resulting contrail-vrouter-agent.conf is as follows:
+The resulting contrail-vrouter-agent.conf:
 
 [QOS]
 [QUEUE-1]
