@@ -1,0 +1,64 @@
+#QOS
+
+
+http://ipnetworkgeek.blogspot.com/2017/05/contrail-how-to-configure-qos.html?m=1
+
+A mapping between the logical queues and the hardware queues should be done in the vrouter-agent configuration file.
+This can be done through the testbed.py r directly in the contrail-vrouter-agent.conf
+
+The following configuration provides a sample testbed.py configuration:
+env.qos = {
+        host1: [
+                {'hardware_q_id':'1','logical_queue':['1'],'default':'True'},
+                {'hardware_q_id':'9','logical_queue':['2']},
+                {'hardware_q_id':'41','logical_queue':['6','10-20','50']},
+        ]
+}
+
+The resulting contrail-vrouter-agent.conf is as follows:
+
+[QOS]
+[QUEUE-1]
+# This is the default hardware queue
+default_hw_queue= true
+# Logical nic queues for qos config
+logical_queue=[1]
+
+[QUEUE-9]
+# Logical nic queues for qos config
+logical_queue=[2]
+
+[QUEUE-41]
+# Logical nic queues for qos config
+logical_queue=[6,10-20,50]
+
+
+For Contrail 5.x, common.sh file can be changed and rthe agent container restarted in order to reate agent QoS configuration.
+	[root@overcloud-novacompute-1 heat-admin]# docker exec -it contrail_vrouter_agent bash
+	(vrouter-agent)[root@overcloud-novacompute-1 /]$ vi common.sh
+Relevant code for the agent container /etc/contrail/contrail-vrouter-agent.conf file is here:
+	https://github.com/Juniper/contrail-container-builder/blob/master/containers/vrouter/agent/entrypoint.sh#L206, where we can find separators for QOS_QUEUE_ID and QOS_LOGICAL_QUEUES
+    IFS=',' read -ra qos_queue_id <<< "${QOS_QUEUE_ID}"
+    IFS=';' read -ra qos_logical_queue <<< "${QOS_LOGICAL_QUEUES}"
+
+[root@overcloud-novacompute-1 heat-admin]# docker exec -it contrail_vrouter_agent bash
+(vrouter-agent)[root@overcloud-novacompute-1 /]$ vi common.sh
+(vrouter-agent)[root@overcloud-novacompute-1 /]$ grep QOS common.sh -A 5
+QOS_QUEUE_ID=${QOS_QUEUE_ID:-"1,2,3"}
+QOS_LOGICAL_QUEUES=${QOS_LOGICAL_QUEUES:-"1;2;3-4"}
+QOS_DEF_HW_QUEUE=${QOS_DEF_HW_QUEUE:-False}
+PRIORITY_TAGGING=${PRIORITY_TAGGING:-True}
+(vrouter-agent)[root@overcloud-novacompute-1 /]$ exit
+exit
+[root@overcloud-novacompute-1 heat-admin]# docker restart contrail_vrouter_agent
+contrail_vrouter_agent
+[root@overcloud-novacompute-1 heat-admin]# docker exec -it contrail_vrouter_agent bash
+(vrouter-agent)[root@overcloud-novacompute-1 /]$ grep QOS /etc/contrail/contrail-vrouter-agent.conf -A 8
+[QOS]
+priority_tagging=True
+[QUEUE-1]
+logical_queue=1
+[QUEUE-2]
+logical_queue=2
+[QUEUEEE-3]
+logical_queue=3-4
